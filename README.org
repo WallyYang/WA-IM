@@ -1,0 +1,10 @@
+* Wally's IM
+** Build and Run
+*** Prerequisite
+    - Install Rust: https://www.rust-lang.org/tools/install
+*** WAIM-lib
+    - Under root directory ~cargo test~ can execute unit test
+*** Server Program
+    - Under ~server~ directory ~cargo run~
+*** Client Program
+    - Under ~client~ directory ~cargo run~
