@@ -1,27 +1,17 @@
 use std::io::{self, BufRead, BufReader, Write};
+use std::net::SocketAddr;
 use std::net::TcpStream;
 use std::str;
 
+use client::Server;
+
 fn main() {
-    let mut stream = TcpStream::connect("127.0.0.1:8888").expect("Could not connect to server");
-    loop {
-        let mut input = String::new();
-        let mut buffer: Vec<u8> = Vec::new();
-        io::stdin()
-            .read_line(&mut input)
-            .expect("Failed to read from stdin");
-        stream
-            .write(input.as_bytes())
-            .expect("Failed to write to server");
+    let server = Server::from_file("config.yaml");
 
-        let mut reader = BufReader::new(&stream);
+    println!("server name = {}", server.name);
+    println!("server address = {}", server.address);
 
-        reader
-            .read_until(b'\n', &mut buffer)
-            .expect("Could not read into buffer");
-        print!(
-            "{}",
-            str::from_utf8(&buffer).expect("Could not write buffer as string")
-        );
-    }
+    let socketAddr = SocketAddr::new(server.address, server.port);
+
+    let mut stream = TcpStream::connect(socketAddr).expect("Could not connect to the server");
 }
