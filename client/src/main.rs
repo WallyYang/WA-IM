@@ -13,5 +13,6 @@ fn main() {
 
     let socket_addr = SocketAddr::new(server.address, server.port);
 
-    let mut stream = TcpStream::connect(socket_addr).expect("Could not connect to the server");
+    let mut stream = TcpStream::connect(socket_addr)
+        .expect("Could not connect to the server");
 }

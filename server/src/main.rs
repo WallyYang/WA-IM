@@ -25,7 +25,8 @@ fn main() {
             Err(e) => eprintln!("failed: {}", e),
             Ok(stream) => {
                 thread::spawn(move || {
-                    handle_client(stream).unwrap_or_else(|error| eprintln!("{:?}", error));
+                    handle_client(stream)
+                        .unwrap_or_else(|error| eprintln!("{:?}", error));
                 });
             }
         }
