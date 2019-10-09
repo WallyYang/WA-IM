@@ -3,7 +3,7 @@ use std::vec::Vec;
 extern crate serde;
 use serde::{Deserialize, Serialize};
 
-#[derive(Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize)]
 pub struct User {
     pub username: String,
     pub password: String,
