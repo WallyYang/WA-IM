@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
-use std::io::{self, BufRead, BufReader, BufWriter, Read, Write};
+use std::io::{BufRead, BufReader, BufWriter, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::Path;
 use std::str;
@@ -104,7 +104,7 @@ impl Session {
     }
 }
 
-fn handle_client(session: Arc<Mutex<Session>>, mut stream: TcpStream) {
+fn handle_client(session: Arc<Mutex<Session>>, stream: TcpStream) {
     println!("Incoming connection from: {}", stream.peer_addr().unwrap());
 
     let mut buffer: Vec<u8> = Vec::new();
@@ -122,15 +122,15 @@ fn handle_client(session: Arc<Mutex<Session>>, mut stream: TcpStream) {
         eprintln!("Got {}", s);
         let request: Request = serde_json::from_str(&s).unwrap();
 
-        let c_mutex = session.clone();
+        // let c_mutex = session.clone();
 
         eprintln!("Matching");
         let result = match request.req_type {
-            ReqType::Register => c_mutex
+            ReqType::Register => session
                 .lock()
                 .unwrap()
                 .register(&mut writer, request.user.clone()),
-            ReqType::Validate => c_mutex
+            ReqType::Validate => session
                 .lock()
                 .unwrap()
                 .validate(&mut writer, request.user.clone()),
@@ -161,10 +161,10 @@ fn handle_client(session: Arc<Mutex<Session>>, mut stream: TcpStream) {
         eprintln!("Got {}", s);
         let request: Request = serde_json::from_str(&s).unwrap();
 
-        let c_mutex = session.clone();
+        // let c_mutex = session.clone();
 
         if request.req_type == ReqType::Message {
-            c_mutex.lock().unwrap().recv_msg(&user, request.message);
+            session.lock().unwrap().recv_msg(&user, request.message);
         } else {
             panic!("Error, expected message from clients");
         }
