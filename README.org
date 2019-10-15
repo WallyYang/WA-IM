@@ -6,5 +6,13 @@
     - Under root directory ~cargo test~ can execute unit test
 *** Server Program
     - Under ~server~ directory ~cargo run~
+    - This crate contains the server program designed to be executed in a known-ip server
+    - Under ~server~ directory, the file ~users.json~ contains the list of registered user and their password
+    - Once started, the server program does not need any interaction
 *** Client Program
     - Under ~client~ directory ~cargo run~
+    - This crate contains the client's binary
+    - The server's IP address can be set in ~config.yaml~ under ~client~ directory
+    - After started, the user can choose to register for a new account ~y~ or use and existing account ~n~
+    - After successfully validated/registered, user can type in message and send with ~Enter~
+    - Type in ~:l~ can fetch all online users
