@@ -105,13 +105,18 @@ impl Session {
             content,
         });
         eprintln!("{:?}", self.messages);
+
+        // for active_conn in &self.active_conns {
+        //     if active_conn.0 != user
+        // }
     }
 }
 
 fn handle_client(session: Arc<Mutex<Session>>, stream: TcpStream) {
     println!("Incoming connection from: {}", stream.peer_addr().unwrap());
 
-    let mut buffer: Vec<u8> = Vec::new();
+    // let mut buffer: Vec<u8> = Vec::new();
+    let mut buffer = String::new();
     let mut reader = BufReader::new(stream.try_clone().unwrap());
     let mut writer = BufWriter::new(stream.try_clone().unwrap());
 
@@ -120,13 +125,11 @@ fn handle_client(session: Arc<Mutex<Session>>, stream: TcpStream) {
         // register or validate user
 
         eprintln!("Reading from TCP stream");
-        reader.read_until(b'\n', &mut buffer).unwrap();
+        reader.read_line(&mut buffer).unwrap();
 
-        let s = str::from_utf8(&buffer).unwrap();
+        let s = buffer.clone();
         eprintln!("Got {}", s);
         let request: Request = serde_json::from_str(&s).unwrap();
-
-        // let c_mutex = session.clone();
 
         eprintln!("Matching");
         let result = match request.req_type {
@@ -159,18 +162,20 @@ fn handle_client(session: Arc<Mutex<Session>>, stream: TcpStream) {
     loop {
         // received messages
         eprintln!("Waiting for messages from TCP stream");
-        reader.read_until(b'\n', &mut buffer).unwrap();
+        reader.read_line(&mut buffer).unwrap();
 
-        let s = str::from_utf8(&buffer).unwrap();
-        eprintln!("Got {}", s);
-        let request: Request = serde_json::from_str(&s).unwrap();
+        let s = buffer.clone();
 
-        // let c_mutex = session.clone();
+        if s.len() > 0 {
+            let request: Request = serde_json::from_str(&s).unwrap();
 
-        if request.req_type == ReqType::Message {
-            session.lock().unwrap().recv_msg(&user, request.message);
+            if request.req_type == ReqType::Message {
+                session.lock().unwrap().recv_msg(&user, request.message);
+            } else {
+                panic!("Error, expected message from clients");
+            }
         } else {
-            panic!("Error, expected message from clients");
+            break;
         }
         buffer.clear();
     }
