@@ -2,6 +2,8 @@
 ** Build and Run
 *** Prerequisite
     - Install Rust: https://www.rust-lang.org/tools/install
+    - Cargo is required, it should be installed along with Rust
+    - When building with Cargo, it would automatically download dependencies
 *** WAIM-lib
     - Under root directory ~cargo test~ can execute unit test
 *** Server Program
