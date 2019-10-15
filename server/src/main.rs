@@ -93,41 +93,44 @@ impl Session {
     }
 }
 
-fn handle_client(session: Arc<Mutex<Session>>, stream: TcpStream) {
+fn handle_client(session: Arc<Mutex<Session>>, mut stream: TcpStream) {
     println!("Incoming connection from: {}", stream.peer_addr().unwrap());
 
-    let mut buffer: Vec<u8> = Vec::new();
-    let mut reader = BufReader::new(stream);
-    reader.read_until(b'\n', &mut buffer).unwrap();
+    loop {
+        let mut buffer: Vec<u8> = Vec::new();
+        let mut reader = BufReader::new(stream);
+        reader.read_until(b'\n', &mut buffer).unwrap();
 
-    let s = str::from_utf8(&buffer).unwrap();
-    let request: Request = serde_json::from_str(&s).unwrap();
+        let s = str::from_utf8(&buffer).unwrap();
+        let request: Request = serde_json::from_str(&s).unwrap();
 
-    let mut stream = reader.into_inner();
+        stream = reader.into_inner();
 
-    let result = match request.req_type {
-        ReqType::Register => (*session)
-            .lock()
-            .unwrap()
-            .register(&mut stream, request.user.clone()),
-        ReqType::Validate => (*session)
-            .lock()
-            .unwrap()
-            .validate(&mut stream, request.user.clone()),
-        ReqType::Message => false,
-    };
+        let result = match request.req_type {
+            ReqType::Register => (*session)
+                .lock()
+                .unwrap()
+                .register(&mut stream, request.user.clone()),
+            ReqType::Validate => (*session)
+                .lock()
+                .unwrap()
+                .validate(&mut stream, request.user.clone()),
+            ReqType::Message => false,
+        };
 
-    if result {
-        (*session)
-            .lock()
-            .unwrap()
-            .active_conns
-            .insert(request.user.clone(), stream.try_clone().unwrap());
+        if result {
+            (*session)
+                .lock()
+                .unwrap()
+                .active_conns
+                .insert(request.user.clone(), stream.try_clone().unwrap());
+            break;
+        }
     }
 }
 
 fn main() {
-    let mut session = Arc::new(Mutex::new(Session::create()));
+    let session = Arc::new(Mutex::new(Session::create()));
 
     println!("{:?}", (*session).lock().unwrap().users);
 
