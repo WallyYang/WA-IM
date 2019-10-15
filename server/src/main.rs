@@ -1,7 +1,7 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
-use std::io::{self, BufRead, BufReader, Read, Write};
+use std::io::{self, BufRead, BufReader, BufWriter, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::Path;
 use std::str;
@@ -53,13 +53,17 @@ impl Session {
         }
     }
 
-    fn register(&mut self, stream: &mut TcpStream, user: User) -> bool {
+    fn register(
+        &mut self,
+        writer: &mut BufWriter<TcpStream>,
+        user: User,
+    ) -> bool {
         eprintln!("Registering");
         if self.users.contains(&user) {
-            stream.write("False".as_bytes()).unwrap();
+            writer.write("False".as_bytes()).unwrap();
             return false;
         } else {
-            stream.write("True".as_bytes()).unwrap();
+            writer.write("True".as_bytes()).unwrap();
 
             self.users.push(user);
 
@@ -75,13 +79,15 @@ impl Session {
         }
     }
 
-    fn validate(&self, stream: &mut TcpStream, user: User) -> bool {
+    fn validate(&self, writer: &mut BufWriter<TcpStream>, user: User) -> bool {
         eprintln!("Validating");
         if self.users.contains(&user) {
-            stream.write("True\n".as_bytes()).unwrap();
+            writer.write("True\n".as_bytes()).unwrap();
+            writer.flush().unwrap();
             return true;
         } else {
-            stream.write("False\n".as_bytes()).unwrap();
+            writer.write("False\n".as_bytes()).unwrap();
+            writer.flush().unwrap();
             return false;
         }
     }
@@ -96,29 +102,37 @@ impl Session {
 fn handle_client(session: Arc<Mutex<Session>>, mut stream: TcpStream) {
     println!("Incoming connection from: {}", stream.peer_addr().unwrap());
 
+    let mut buffer: Vec<u8> = Vec::new();
+    let mut reader = BufReader::new(stream.try_clone().unwrap());
+    let mut writer = BufWriter::new(stream.try_clone().unwrap());
+
     loop {
-        let mut buffer: Vec<u8> = Vec::new();
-        let mut reader = BufReader::new(stream);
+        // register or validate user
+
+        eprintln!("Reading from TCP stream");
         reader.read_until(b'\n', &mut buffer).unwrap();
 
         let s = str::from_utf8(&buffer).unwrap();
+        eprintln!("Got {}", s);
         let request: Request = serde_json::from_str(&s).unwrap();
 
-        stream = reader.into_inner();
+        let c_mutex = session.clone();
 
+        eprintln!("Matching");
         let result = match request.req_type {
-            ReqType::Register => (*session)
+            ReqType::Register => c_mutex
                 .lock()
                 .unwrap()
-                .register(&mut stream, request.user.clone()),
-            ReqType::Validate => (*session)
+                .register(&mut writer, request.user.clone()),
+            ReqType::Validate => c_mutex
                 .lock()
                 .unwrap()
-                .validate(&mut stream, request.user.clone()),
+                .validate(&mut writer, request.user.clone()),
             ReqType::Message => false,
         };
 
         if result {
+            eprintln!("Validation success");
             (*session)
                 .lock()
                 .unwrap()
@@ -126,6 +140,8 @@ fn handle_client(session: Arc<Mutex<Session>>, mut stream: TcpStream) {
                 .insert(request.user.clone(), stream.try_clone().unwrap());
             break;
         }
+        eprintln!("Validation failed");
+        buffer.clear();
     }
 }
 
