@@ -1,22 +1,22 @@
-use std::vec::Vec;
-
+use std::collections::BTreeSet;
 use std::error::Error;
-use std::fs::File;
-use std::path::Path;
-
+use std::fs::{File, OpenOptions};
+use std::io::{self, BufRead, BufReader, Read, Write};
 use std::net::{TcpListener, TcpStream};
-// use std::thread;
-
-use std::io;
-use std::io::{Read, Write};
+use std::path::Path;
+use std::str;
+use std::vec::Vec;
 
 extern crate serde;
 
 use waim::Message;
+use waim::ReqType;
+use waim::Request;
 use waim::User;
 
 struct Session {
     users: Vec<User>,
+    // conns: BTreeSet<TcpStream>,
     messages: Vec<Message>,
 }
 
@@ -46,25 +46,59 @@ impl Session {
 
         Session {
             users: users,
+            // conns: BTreeSet::new(),
             messages: Vec::new(),
         }
     }
-}
 
-fn handle_client(mut stream: TcpStream) -> Result<(), io::Error> {
-    println!("Incoming connection from: {}", stream.peer_addr()?);
-    let mut buf = [0; 512];
-    loop {
-        let bytes_read = stream.read(&mut buf)?;
-        if bytes_read == 0 {
-            return Ok(());
+    fn handle_client(&mut self, stream: &mut TcpStream) {
+        println!("Incoming connection from: {}", stream.peer_addr().unwrap());
+
+        let mut buffer: Vec<u8> = Vec::new();
+        let mut reader = BufReader::new(stream);
+        reader.read_until(b'\n', &mut buffer).unwrap();
+
+        let s = str::from_utf8(&buffer).unwrap();
+        let request: Request = serde_json::from_str(&s).unwrap();
+
+        let stream = reader.into_inner();
+
+        match request.req_type {
+            ReqType::Register => self.register(stream, request.user),
+            ReqType::Validate => self.validate(stream, request.user),
+            _ => (),
         }
-        stream.write(&buf[..bytes_read])?;
+    }
+
+    fn register(&mut self, stream: &mut TcpStream, user: User) {
+        eprintln!("Registering");
+        if self.users.contains(&user) {
+            stream.write("False".as_bytes()).unwrap();
+        } else {
+            stream.write("True".as_bytes()).unwrap();
+            let mut file = File::create("users.json")
+                .expect("Unable to open users.json for writing");
+            file.write(
+                serde_json::to_string_pretty(&self.users)
+                    .unwrap()
+                    .as_bytes(),
+            )
+            .expect("Failed to write to user file");
+        }
+    }
+
+    fn validate(&self, stream: &mut TcpStream, user: User) {
+        eprintln!("Validating");
+        if self.users.contains(&user) {
+            stream.write("True".as_bytes()).unwrap();
+        } else {
+            stream.write("False".as_bytes()).unwrap();
+        }
     }
 }
 
 fn main() {
-    let session = Session::create();
+    let mut session = Session::create();
     println!("{:?}", session.users);
 
     let listener = TcpListener::bind("0.0.0.0:8080").unwrap();
@@ -72,9 +106,7 @@ fn main() {
     for stream in listener.incoming() {
         match stream {
             Err(e) => eprintln!("failed: {}", e),
-            Ok(stream) => {
-                handle_client(stream).unwrap_or_else(|e| eprintln!("{:?}", e));
-            }
+            Ok(mut stream) => session.handle_client(&mut stream),
         }
     }
 }

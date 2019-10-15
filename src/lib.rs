@@ -9,6 +9,13 @@ pub struct User {
     pub password: String,
 }
 
+impl std::cmp::PartialEq for User {
+    fn eq(&self, other: &User) -> bool {
+        return self.username == other.username
+            && self.password == other.password;
+    }
+}
+
 pub struct Message {
     pub user: User,
     pub content: String,
@@ -24,6 +31,20 @@ pub fn deserialize_users(s: &str) -> Vec<User> {
         .unwrap_or_else(|_| panic!("Error while deserializing users"));
 
     users
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub struct Request {
+    pub req_type: ReqType,
+    pub user: User,
+    pub message: String,
+}
+
+#[derive(Debug, Serialize, Deserialize)]
+pub enum ReqType {
+    Register,
+    Validate,
+    Message,
 }
 
 #[cfg(test)]
