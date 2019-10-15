@@ -41,7 +41,7 @@ fn register(stream: &mut TcpStream, user: User) -> bool {
     let mut reader = BufReader::new(stream);
     reader.read_until(b'\n', &mut buffer).unwrap();
 
-    let result = str::from_utf8(&buffer).unwrap();
+    let result = str::from_utf8(&buffer).unwrap().trim();
     println!("{}", result);
 
     result == "True"
