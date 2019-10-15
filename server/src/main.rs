@@ -60,10 +60,12 @@ impl Session {
     ) -> bool {
         eprintln!("Registering");
         if self.users.contains(&user) {
-            writer.write("False".as_bytes()).unwrap();
+            writer.write("False\n".as_bytes()).unwrap();
+            writer.flush().unwrap();
             return false;
         } else {
-            writer.write("True".as_bytes()).unwrap();
+            writer.write("True\n".as_bytes()).unwrap();
+            writer.flush().unwrap();
 
             self.users.push(user);
 
