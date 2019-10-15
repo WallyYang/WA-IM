@@ -34,7 +34,7 @@ pub struct Request {
     pub message: String,
 }
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, PartialEq)]
 pub enum ReqType {
     Register,
     Validate,

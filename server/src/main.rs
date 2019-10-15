@@ -94,10 +94,13 @@ impl Session {
         }
     }
 
-    fn recv_msg(&mut self, user: User, content: String) {
+    fn recv_msg(&mut self, user: &User, content: String) {
         eprintln!("Received Message");
+        self.messages.push(Message {
+            user: user.clone(),
+            content,
+        });
         eprintln!("{:?}", self.messages);
-        self.messages.push(Message { user, content });
     }
 }
 
@@ -108,6 +111,7 @@ fn handle_client(session: Arc<Mutex<Session>>, mut stream: TcpStream) {
     let mut reader = BufReader::new(stream.try_clone().unwrap());
     let mut writer = BufWriter::new(stream.try_clone().unwrap());
 
+    let user: User;
     loop {
         // register or validate user
 
@@ -140,9 +144,30 @@ fn handle_client(session: Arc<Mutex<Session>>, mut stream: TcpStream) {
                 .unwrap()
                 .active_conns
                 .insert(request.user.clone(), stream.try_clone().unwrap());
+            user = request.user;
             break;
         }
         eprintln!("Validation failed");
+        buffer.clear();
+    }
+
+    buffer.clear();
+    loop {
+        // received messages
+        eprintln!("Waiting for messages from TCP stream");
+        reader.read_until(b'\n', &mut buffer).unwrap();
+
+        let s = str::from_utf8(&buffer).unwrap();
+        eprintln!("Got {}", s);
+        let request: Request = serde_json::from_str(&s).unwrap();
+
+        let c_mutex = session.clone();
+
+        if request.req_type == ReqType::Message {
+            c_mutex.lock().unwrap().recv_msg(&user, request.message);
+        } else {
+            panic!("Error, expected message from clients");
+        }
         buffer.clear();
     }
 }
