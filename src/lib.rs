@@ -3,17 +3,10 @@ use std::vec::Vec;
 extern crate serde;
 use serde::{Deserialize, Serialize};
 
-#[derive(Debug, Serialize, Deserialize)]
+#[derive(Debug, Serialize, Deserialize, Hash, PartialEq, Eq)]
 pub struct User {
     pub username: String,
     pub password: String,
-}
-
-impl std::cmp::PartialEq for User {
-    fn eq(&self, other: &User) -> bool {
-        return self.username == other.username
-            && self.password == other.password;
-    }
 }
 
 pub struct Message {
