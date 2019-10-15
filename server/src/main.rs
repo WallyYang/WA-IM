@@ -1,20 +1,16 @@
 use std::collections::HashMap;
 use std::error::Error;
 use std::fs::File;
-use std::io::{BufRead, BufReader, BufWriter, Read, Write};
+use std::io::{BufWriter, Read, Write};
 use std::net::{TcpListener, TcpStream};
 use std::path::Path;
-use std::str;
 use std::sync::{Arc, Mutex};
 use std::thread;
 use std::vec::Vec;
 
 extern crate serde;
 
-use waim::Message;
-use waim::ReqType;
-use waim::Request;
-use waim::User;
+use waim::*;
 
 struct Session {
     users: Vec<User>,
@@ -98,86 +94,94 @@ impl Session {
     }
 
     /// add a message to list of messages
-    fn recv_msg(&mut self, user: &User, content: String) {
+    fn recv_msg(&mut self, user: &User, content: &String) {
         eprintln!("Received Message");
         self.messages.push(Message {
             user: user.clone(),
-            content,
+            content: content.clone(),
         });
-        eprintln!("{:?}", self.messages);
+        eprintln!("{}", serde_json::to_string_pretty(&self.messages).unwrap());
 
-        // for active_conn in &self.active_conns {
-        //     if active_conn.0 != user
-        // }
+        for active_conn in &mut self.active_conns {
+            if active_conn.0 != user {
+                send_req(active_conn.1, ReqType::Message, user, &content);
+            }
+        }
+    }
+
+    fn list(&mut self, user: &User) {
+        eprintln!("List online users");
+
+        let mut users: Vec<String> = Vec::new();
+        for active_conn in &mut self.active_conns {
+            users.push(active_conn.0.username.clone());
+        }
+
+        send_req(
+            &mut self.active_conns.get_mut(&user).unwrap(),
+            ReqType::List,
+            &user,
+            &serde_json::to_string(&users).unwrap(),
+        );
     }
 }
 
 fn handle_client(session: Arc<Mutex<Session>>, stream: TcpStream) {
     println!("Incoming connection from: {}", stream.peer_addr().unwrap());
 
-    // let mut buffer: Vec<u8> = Vec::new();
-    let mut buffer = String::new();
-    let mut reader = BufReader::new(stream.try_clone().unwrap());
     let mut writer = BufWriter::new(stream.try_clone().unwrap());
 
     let user: User;
     loop {
         // register or validate user
+        if let Some(request) = recv_req(&stream) {
+            eprintln!("Matching");
+            let result = match request.req_type {
+                ReqType::Register => session
+                    .lock()
+                    .unwrap()
+                    .register(&mut writer, request.user.clone()),
+                ReqType::Validate => session
+                    .lock()
+                    .unwrap()
+                    .validate(&mut writer, request.user.clone()),
+                _ => false,
+            };
 
-        eprintln!("Reading from TCP stream");
-        reader.read_line(&mut buffer).unwrap();
-
-        let s = buffer.clone();
-        eprintln!("Got {}", s);
-        let request: Request = serde_json::from_str(&s).unwrap();
-
-        eprintln!("Matching");
-        let result = match request.req_type {
-            ReqType::Register => session
-                .lock()
-                .unwrap()
-                .register(&mut writer, request.user.clone()),
-            ReqType::Validate => session
-                .lock()
-                .unwrap()
-                .validate(&mut writer, request.user.clone()),
-            ReqType::Message => false,
-        };
-
-        if result {
-            eprintln!("Validation success");
-            (*session)
-                .lock()
-                .unwrap()
-                .active_conns
-                .insert(request.user.clone(), stream.try_clone().unwrap());
-            user = request.user;
-            break;
+            if result {
+                eprintln!("Validation success");
+                (*session)
+                    .lock()
+                    .unwrap()
+                    .active_conns
+                    .insert(request.user.clone(), stream.try_clone().unwrap());
+                user = request.user;
+                break;
+            }
+        } else {
+            eprintln!("Empty request");
         }
         eprintln!("Validation failed");
-        buffer.clear();
     }
 
-    buffer.clear();
     loop {
         // received messages
-        eprintln!("Waiting for messages from TCP stream");
-        reader.read_line(&mut buffer).unwrap();
-
-        let s = buffer.clone();
-
-        if s.len() > 0 {
-            let request: Request = serde_json::from_str(&s).unwrap();
-
-            if request.req_type == ReqType::Message {
-                session.lock().unwrap().recv_msg(&user, request.message);
-            } else {
-                panic!("Error, expected message from clients");
+        if let Some(request) = recv_req(&stream) {
+            match request.req_type {
+                ReqType::Message => {
+                    session.lock().unwrap().recv_msg(&user, &request.message)
+                }
+                ReqType::List => session.lock().unwrap().list(&user),
+                _ => (),
             }
+        // if request.req_type == ReqType::Message {
+        //     session.lock().unwrap().recv_msg(&user, request.message);
+        // } else {
+        //     panic!("Error, expected message from clients");
+        // }
         } else {
             break;
         }
-        buffer.clear();
     }
 }
 
