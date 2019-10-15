@@ -111,11 +111,16 @@ fn main() {
         let request = Request {
             req_type: ReqType::Message,
             user: user.clone(),
-            message: msg,
+            message: msg.trim().to_string(),
         };
 
         stream
-            .write(serde_json::to_string(&request).unwrap().as_bytes())
+            .write(
+                serde_json::to_string(&request)
+                    .unwrap()
+                    .add("\n")
+                    .as_bytes(),
+            )
             .unwrap();
     }
 }
