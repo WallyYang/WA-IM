@@ -76,6 +76,9 @@ impl Session {
             stream.write("False".as_bytes()).unwrap();
         } else {
             stream.write("True".as_bytes()).unwrap();
+
+            self.users.push(user);
+
             let mut file = File::create("users.json")
                 .expect("Unable to open users.json for writing");
             file.write(
