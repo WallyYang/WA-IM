@@ -93,6 +93,10 @@ impl Session {
         }
     }
 
+    fn remove_conn(&mut self, user: &User) {
+        self.active_conns.remove(user);
+    }
+
     /// add a message to list of messages
     fn recv_msg(&mut self, user: &User, content: &String) {
         eprintln!("Received Message");
@@ -174,12 +178,8 @@ fn handle_client(session: Arc<Mutex<Session>>, stream: TcpStream) {
                 ReqType::List => session.lock().unwrap().list(&user),
                 _ => (),
             }
-        // if request.req_type == ReqType::Message {
-        //     session.lock().unwrap().recv_msg(&user, request.message);
-        // } else {
-        //     panic!("Error, expected message from clients");
-        // }
         } else {
+            session.lock().unwrap().remove_conn(&user);
             break;
         }
     }
