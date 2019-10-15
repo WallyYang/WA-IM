@@ -1,13 +1,10 @@
-use std::io::{self, BufRead, BufReader, Write};
+use std::io::{self, BufRead, BufReader, BufWriter, Write};
 use std::net::SocketAddr;
 use std::net::TcpStream;
-use std::ops::Add;
 use std::str;
 
 use client::Server;
-use waim::ReqType;
-use waim::Request;
-use waim::User;
+use waim::*;
 
 fn prompt_for_user() -> User {
     print!("Enter your username: ");
@@ -19,7 +16,6 @@ fn prompt_for_user() -> User {
     io::stdout().flush().unwrap();
     let mut password = String::new();
     io::stdin().read_line(&mut password).unwrap();
-
     User {
         username: username.trim().to_string(),
         password: password.trim().to_string(),
@@ -27,15 +23,8 @@ fn prompt_for_user() -> User {
 }
 
 fn register(stream: &mut TcpStream, user: User) -> bool {
-    let request = Request {
-        req_type: ReqType::Register,
-        user: user,
-        message: String::new(),
-    };
-
-    let s = serde_json::to_string(&request).unwrap().add("\n");
-
-    stream.write(s.as_bytes()).unwrap();
+    let mut writer = BufWriter::new(stream.try_clone().unwrap());
+    send_req(&mut writer, ReqType::Register, &user, &String::new());
 
     let mut buffer: Vec<u8> = Vec::new();
     let mut reader = BufReader::new(stream);
@@ -48,15 +37,8 @@ fn register(stream: &mut TcpStream, user: User) -> bool {
 }
 
 fn validate(stream: &mut TcpStream, user: User) -> bool {
-    let request = Request {
-        req_type: ReqType::Validate,
-        user: user,
-        message: String::new(),
-    };
-
-    let s = serde_json::to_string(&request).unwrap().add("\n");
-
-    stream.write(s.as_bytes()).unwrap();
+    let mut writer = BufWriter::new(stream.try_clone().unwrap());
+    send_req(&mut writer, ReqType::Validate, &user, &String::new());
 
     let mut buffer: Vec<u8> = Vec::new();
     let mut reader = BufReader::new(stream);
@@ -101,6 +83,7 @@ fn main() {
         }
     }
 
+    let mut writer = BufWriter::new(stream);
     loop {
         print!("> ");
         io::stdout().flush().unwrap();
@@ -108,19 +91,6 @@ fn main() {
         let mut msg = String::new();
         io::stdin().read_line(&mut msg).unwrap();
 
-        let request = Request {
-            req_type: ReqType::Message,
-            user: user.clone(),
-            message: msg.trim().to_string(),
-        };
-
-        stream
-            .write(
-                serde_json::to_string(&request)
-                    .unwrap()
-                    .add("\n")
-                    .as_bytes(),
-            )
-            .unwrap();
+        send_req(&mut writer, ReqType::Message, &user, msg.trim());
     }
 }

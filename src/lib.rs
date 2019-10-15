@@ -1,3 +1,6 @@
+use std::io::{BufWriter, Write};
+use std::net::TcpStream;
+use std::ops::Add;
 use std::vec::Vec;
 
 extern crate serde;
@@ -39,6 +42,30 @@ pub enum ReqType {
     Register,
     Validate,
     Message,
+}
+
+/// Create a JSON string from request field and write to TCP stream
+pub fn send_req(
+    writer: &mut BufWriter<TcpStream>,
+    req_type: ReqType,
+    user: &User,
+    message: &str,
+) {
+    let request = Request {
+        req_type,
+        user: user.clone(),
+        message: message.clone().to_string(),
+    };
+
+    let s = serde_json::to_string(&request)
+        .expect("Error converting request to JSON string")
+        .add("\n");
+    eprintln!("{}", s);
+
+    writer
+        .write(s.as_bytes())
+        .expect("Unable to write to TCP stream");
+    writer.flush().expect("Error while writing to TCP stream");
 }
 
 #[cfg(test)]
