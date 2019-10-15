@@ -62,7 +62,7 @@ fn validate(stream: &mut TcpStream, user: User) -> bool {
     let mut reader = BufReader::new(stream);
     reader.read_until(b'\n', &mut buffer).unwrap();
 
-    let result = str::from_utf8(&buffer).unwrap();
+    let result = str::from_utf8(&buffer).unwrap().trim();
     println!("{}", result);
 
     result == "True"
@@ -89,17 +89,33 @@ fn main() {
 
     if reg == "y" {
         eprintln!("Register");
-        while !register(&mut stream, user) {
+        while !register(&mut stream, user.clone()) {
             println!("Error, username exists");
             user = prompt_for_user();
         }
     } else {
         eprintln!("Validate");
-        while !validate(&mut stream, user) {
+        while !validate(&mut stream, user.clone()) {
             println!("Error, invalid username or password");
             user = prompt_for_user();
         }
     }
 
-    println!("exit");
+    loop {
+        print!("> ");
+        io::stdout().flush().unwrap();
+
+        let mut msg = String::new();
+        io::stdin().read_line(&mut msg).unwrap();
+
+        let request = Request {
+            req_type: ReqType::Message,
+            user: user.clone(),
+            message: msg,
+        };
+
+        stream
+            .write(serde_json::to_string(&request).unwrap().as_bytes())
+            .unwrap();
+    }
 }
