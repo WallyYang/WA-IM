@@ -6,6 +6,7 @@ use std::str;
 use client::Server;
 use waim::*;
 
+/// prompt user for username and password, return a User struct
 fn prompt_for_user() -> User {
     print!("Enter your username: ");
     io::stdout().flush().unwrap();
@@ -22,6 +23,7 @@ fn prompt_for_user() -> User {
     }
 }
 
+/// send a user to server for registration, return true if no duplicate username
 fn register(stream: &mut TcpStream, user: User) -> bool {
     let mut writer = BufWriter::new(stream.try_clone().unwrap());
     send_req(&mut writer, ReqType::Register, &user, &String::new());
@@ -36,6 +38,8 @@ fn register(stream: &mut TcpStream, user: User) -> bool {
     result == "True"
 }
 
+/// send a user to server for validation,
+/// return true if username and password matches
 fn validate(stream: &mut TcpStream, user: User) -> bool {
     let mut writer = BufWriter::new(stream.try_clone().unwrap());
     send_req(&mut writer, ReqType::Validate, &user, &String::new());

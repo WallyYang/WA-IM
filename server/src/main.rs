@@ -23,6 +23,7 @@ struct Session {
 }
 
 impl Session {
+    /// create a session and read user info from file
     fn create() -> Session {
         let users = Path::new("users.json");
 
@@ -53,6 +54,7 @@ impl Session {
         }
     }
 
+    /// register a user to the list, write False to stream if duplicate
     fn register(
         &mut self,
         writer: &mut BufWriter<TcpStream>,
@@ -81,6 +83,7 @@ impl Session {
         }
     }
 
+    /// validate the user with list, write True if username and password match
     fn validate(&self, writer: &mut BufWriter<TcpStream>, user: User) -> bool {
         eprintln!("Validating");
         if self.users.contains(&user) {
@@ -94,6 +97,7 @@ impl Session {
         }
     }
 
+    /// add a message to list of messages
     fn recv_msg(&mut self, user: &User, content: String) {
         eprintln!("Received Message");
         self.messages.push(Message {
