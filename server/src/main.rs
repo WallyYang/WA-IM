@@ -113,6 +113,7 @@ impl Session {
         }
     }
 
+    /// Write online users to stream sending to client
     fn list(&mut self, user: &User) {
         eprintln!("List online users");
 
@@ -130,6 +131,8 @@ impl Session {
     }
 }
 
+/// Looping for each client, handle requests
+/// remove connection for the session when client closes
 fn handle_client(session: Arc<Mutex<Session>>, stream: TcpStream) {
     println!("Incoming connection from: {}", stream.peer_addr().unwrap());
 
@@ -188,10 +191,15 @@ fn handle_client(session: Arc<Mutex<Session>>, stream: TcpStream) {
 fn main() {
     let session = Arc::new(Mutex::new(Session::create()));
 
-    println!("{:?}", (*session).lock().unwrap().users);
+    println!("Loaded users:");
+    println!(
+        "{}",
+        serde_json::to_string_pretty(&session.lock().unwrap().users).unwrap()
+    );
 
     let listener = TcpListener::bind("0.0.0.0:8080").unwrap();
 
+    // spawn thread for each incoming client
     for stream in listener.incoming() {
         match stream {
             Err(e) => eprintln!("failed: {}", e),

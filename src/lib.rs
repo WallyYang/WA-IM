@@ -1,7 +1,5 @@
-use std::io::{BufRead, BufReader, BufWriter, Read, Write};
+use std::io::{BufRead, BufReader, BufWriter, Write};
 use std::net::TcpStream;
-use std::ops::Add;
-use std::thread;
 use std::vec::Vec;
 
 extern crate serde;
@@ -79,16 +77,10 @@ pub fn recv_req(stream: &TcpStream) -> Option<Request> {
         BufReader::new(stream.try_clone().expect("Unable to clone TCP stream"));
 
     let mut buffer = String::new();
-    match reader.read_line(&mut buffer) {
-        Err(ref e) if e.kind() == std::io::ErrorKind::WouldBlock => {
-            eprintln!("Error")
-        }
-        _ => (),
-    }
-    // .expect("Error reading from TCP stream");
-
+    reader
+        .read_line(&mut buffer)
+        .expect("Unable to read from TCP stream");
     if buffer.len() > 0 {
-        eprintln!("Received Request: {}", buffer);
         serde_json::from_str(&buffer).expect("Error parsing incoming request")
     } else {
         None

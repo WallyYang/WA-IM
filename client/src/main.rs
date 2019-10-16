@@ -2,7 +2,6 @@ use std::io::{self, BufRead, BufReader, Write};
 use std::net::SocketAddr;
 use std::net::TcpStream;
 use std::str;
-use std::sync::mpsc;
 use std::thread;
 
 use client::Server;
@@ -34,7 +33,6 @@ fn register(stream: &mut TcpStream, user: User) -> bool {
     reader.read_until(b'\n', &mut buffer).unwrap();
 
     let result = str::from_utf8(&buffer).unwrap().trim();
-    println!("{}", result);
 
     result == "True"
 }
@@ -49,7 +47,6 @@ fn validate(stream: &mut TcpStream, user: User) -> bool {
     reader.read_until(b'\n', &mut buffer).unwrap();
 
     let result = str::from_utf8(&buffer).unwrap().trim();
-    println!("{}", result);
 
     result == "True"
 }
@@ -86,8 +83,10 @@ fn main() {
             user = prompt_for_user();
         }
     }
+    eprintln!("Success!\n");
 
     loop {
+        // spawn a thread to listen for incoming messages
         let c_stream = stream.try_clone().unwrap();
         thread::spawn(move || loop {
             if let Some(request) = recv_req(&c_stream) {
